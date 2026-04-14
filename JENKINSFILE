@@ -5,15 +5,20 @@ pipeline {
         stage('Get Code') {
             steps {
                 // Obtener código del repo
-                git 'https://github.com/anieto-unir/helloworld.git'
+                // git 'https://github.com/anieto-unir/helloworld.git'
+                git 'https://github.com/albertorekena/devops-unir-anieto-helloworld'
             }
         }
 
     stage('Build') {
         steps {
             echo 'Eyyyy, esto es Python. No hay que compilar nada!!!'
-	    echo WORKSPACE
-	    bat 'dir'
+            echo WORKSPACE
+            // bat 'dir'                 // Windows
+            sh 'ls'                      // Linux
+            // Añade Python y paquetes al contenedor docker en el que se encuentra Jenkins
+            sh 'apt-get update && apt-get install -y python3 python3-pip'
+            sh 'python3 -m pip install flask pytest requests'
         }
     }
 
@@ -24,26 +29,44 @@ pipeline {
             stage('Unit') {
                 steps {
                     catchError(buildResult: 'UNSTABLE', stageResult: 'FAILURE') {
-                        bat '''
-                                set PYTHONPATH=%WORKSPACE%
-                                pytest --junitxml=result-unit.xml test\\unit
+                        // Windows:
+                        // bat '''
+                        //         set PYTHONPATH=%WORKSPACE%
+                        //         pytest --junitxml=result-unit.xml test\\unit
+                        // '''
+                        sh '''
+                            export PYTHONPATH=$WORKSPACE
+                            pytest --junitxml=result-unit.xml test/unit
                         '''
                     }
                 }
             }
-            
+
             stage('Rest') {
                 steps {
-                    bat '''
-                        set FLASK_APP=app\\api.py
-                        set FLASK_ENV=development
-                        start flask run
-                        start java -jar C:\\Unir\\Ejercicios\\wiremock\\wiremock-jre8-standalone-2.28.0.jar --port 9090 --root-dir test\\wiremock
-                        set PYTHONPATH=%WORKSPACE%
-                        pytest --junitxml=result-rest.xml test\\rest
+                    // Windows:
+                    // bat '''
+                    //     set FLASK_APP=app\\api.py
+                    //     set FLASK_ENV=development
+                    //     start flask run
+                    //     start java -jar C:\\Unir\\Ejercicios\\wiremock\\wiremock-jre8-standalone-2.28.0.jar --port 9090 --root-dir test\\wiremock
+                    //     set PYTHONPATH=%WORKSPACE%
+                    //     pytest --junitxml=result-rest.xml test\\rest
+                    // '''
+                    // Añade wiremock al contenedor docker en el que se encuentra Jenkins
+                    sh '''
+                        curl -sLo test/wiremock/wiremock-standalone.jar \
+                            https://repo1.maven.org/maven2/com/github/tomakehurst/wiremock-standalone/2.27.2/wiremock-standalone-2.27.2.jar
+                        export FLASK_APP=app/api.py
+                        export FLASK_ENV=development
+                        flask run &
+                        java -jar test/wiremock/wiremock-standalone.jar --port 9090 --root-dir test/wiremock &
+                        sleep 3
+                        export PYTHONPATH=$WORKSPACE
+                        pytest --junitxml=result-rest.xml test/rest
                     '''
-                }    
-            }    
+                }
+            }
         }
     }
     
