@@ -1,8 +1,10 @@
 pipeline {
-    agent any
+    // agent any
+    agent none
 
      stages {
         stage('Get Code') {
+            agent any
             steps {
                 cleanWs()
                 // Obtener código del repo
@@ -12,6 +14,7 @@ pipeline {
         }
 
     stage('Build') {
+        agent any
         steps {
             echo 'Eyyyy, esto es Python. No hay que compilar nada!!!'
             echo WORKSPACE
@@ -26,8 +29,8 @@ pipeline {
     stage('Tests')
     {
         parallel {
-
             stage('Unit') {
+                agent any
                 steps {
                     catchError(buildResult: 'UNSTABLE', stageResult: 'FAILURE') {
                         // Windows:
@@ -44,6 +47,7 @@ pipeline {
             }
 
             stage('Rest') {
+                agent any
                 steps {
                     // Windows:
                     // bat '''
@@ -72,6 +76,7 @@ pipeline {
     }
     
     stage ('Results') {
+        agent any
         steps {
             junit 'result*.xml'
         }
