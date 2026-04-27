@@ -71,6 +71,7 @@ pipeline {
             sh '''
                 [ -d /var/jenkins_home/tools/apache-jmeter-5.4.3 ] || {
                     curl -sLo /tmp/apache-jmeter-5.4.3.tgz https://archive.apache.org/dist/jmeter/binaries/apache-jmeter-5.4.3.tgz
+                    mkdir -p /var/jenkins_home/tools/
                     tar -xzf /tmp/apache-jmeter-5.4.3.tgz -C /var/jenkins_home/tools/
                 }
                 export FLASK_APP=app/api.py
