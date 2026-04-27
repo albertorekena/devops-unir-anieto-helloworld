@@ -52,6 +52,16 @@ pipeline {
                     }
                 }
             }
+
+            stage('Security') {
+                agent any
+                steps {
+                    catchError(buildResult: 'UNSTABLE', stageResult: 'FAILURE') {
+                        sh 'bandit -r app/ -f custom -o bandit.out --msg-template "{abspath}:{line}: [{test_id}] {msg}" --exit-zero'
+                    }
+                    recordIssues tools: [pyLint(name: 'Bandit', pattern: 'bandit.out')]
+                }
+            }
         }
     }
 
