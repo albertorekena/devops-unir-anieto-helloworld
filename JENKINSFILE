@@ -5,6 +5,7 @@ pipeline {
     stages {
         stage('Get Code') {
             agent any
+            options { skipDefaultCheckout() }
             steps {
                 cleanWs()
                 git 'https://github.com/albertorekena/devops-unir-anieto-helloworld'
@@ -29,7 +30,7 @@ pipeline {
                 agent any
                 steps {
                     sh '''
-                        curl -sLo test/wiremock/wiremock-standalone.jar \
+                        [ -f test/wiremock/wiremock-standalone.jar ] || curl -sLo test/wiremock/wiremock-standalone.jar \
                             https://repo1.maven.org/maven2/com/github/tomakehurst/wiremock-standalone/2.27.2/wiremock-standalone-2.27.2.jar
                         export FLASK_APP=app/api.py
                         export FLASK_ENV=development
@@ -40,6 +41,15 @@ pipeline {
                         pytest --junitxml=result-rest.xml test/rest
                     '''
                     stash name: 'rest-results', includes: 'result-rest.xml'
+                }
+            }
+
+            stage('Static') {
+                agent any
+                steps {
+                    catchError(buildResult: 'UNSTABLE', stageResult: 'FAILURE') {
+                        sh 'flake8 --format=pylint app/ test/'
+                    }
                 }
             }
         }
