@@ -69,14 +69,14 @@ pipeline {
         agent any
         steps {
             sh '''
-                [ -d apache-jmeter-5.4.3 ] || {
-                    curl -sLo apache-jmeter-5.4.3.tgz https://archive.apache.org/dist/jmeter/binaries/apache-jmeter-5.4.3.tgz
-                    tar -xzf apache-jmeter-5.4.3.tgz
+                [ -d /var/jenkins_home/tools/apache-jmeter-5.4.3 ] || {
+                    curl -sLo /tmp/apache-jmeter-5.4.3.tgz https://archive.apache.org/dist/jmeter/binaries/apache-jmeter-5.4.3.tgz
+                    tar -xzf /tmp/apache-jmeter-5.4.3.tgz -C /var/jenkins_home/tools/
                 }
                 export FLASK_APP=app/api.py
                 flask run --port=5001 &
                 sleep 3
-                apache-jmeter-5.4.3/bin/jmeter -n -t test/jmeter/flask.jmx -l result-jmeter.jtl
+                /var/jenkins_home/tools/apache-jmeter-5.4.3/bin/jmeter -n -t test/jmeter/flask.jmx -l result-jmeter.jtl
             '''
             perfReport sourceDataFiles: 'result-jmeter.jtl'
         }
