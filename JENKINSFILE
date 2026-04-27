@@ -2,42 +2,21 @@ pipeline {
     // agent any
     agent none
 
-     stages {
+    stages {
         stage('Get Code') {
             agent any
             steps {
                 cleanWs()
-                // Obtener código del repo
-                // git 'https://github.com/anieto-unir/helloworld.git'
                 git 'https://github.com/albertorekena/devops-unir-anieto-helloworld'
             }
         }
 
-    stage('Build') {
-        agent any
-        steps {
-            echo 'Eyyyy, esto es Python. No hay que compilar nada!!!'
-            echo WORKSPACE
-            // bat 'dir'                 // Windows
-            sh 'ls'                      // Linux
-            // Añade Python y paquetes al contenedor docker en el que se encuentra Jenkins
-            sh 'apt-get update && apt-get install -y python3 python3-pip'
-            sh 'python3 -m pip install flask pytest requests --break-system-packages'
-        }
-    }
-
-    stage('Tests')
-    {
+    stage('Tests') {
         parallel {
             stage('Unit') {
                 agent any
                 steps {
                     catchError(buildResult: 'UNSTABLE', stageResult: 'FAILURE') {
-                        // Windows:
-                        // bat '''
-                        //         set PYTHONPATH=%WORKSPACE%
-                        //         pytest --junitxml=result-unit.xml test\\unit
-                        // '''
                         sh '''
                             export PYTHONPATH=$WORKSPACE
                             pytest --junitxml=result-unit.xml test/unit
@@ -49,16 +28,6 @@ pipeline {
             stage('Rest') {
                 agent any
                 steps {
-                    // Windows:
-                    // bat '''
-                    //     set FLASK_APP=app\\api.py
-                    //     set FLASK_ENV=development
-                    //     start flask run
-                    //     start java -jar C:\\Unir\\Ejercicios\\wiremock\\wiremock-jre8-standalone-2.28.0.jar --port 9090 --root-dir test\\wiremock
-                    //     set PYTHONPATH=%WORKSPACE%
-                    //     pytest --junitxml=result-rest.xml test\\rest
-                    // '''
-                    // Añade wiremock al contenedor docker en el que se encuentra Jenkins
                     sh '''
                         curl -sLo test/wiremock/wiremock-standalone.jar \
                             https://repo1.maven.org/maven2/com/github/tomakehurst/wiremock-standalone/2.27.2/wiremock-standalone-2.27.2.jar
@@ -70,14 +39,16 @@ pipeline {
                         export PYTHONPATH=$WORKSPACE
                         pytest --junitxml=result-rest.xml test/rest
                     '''
+                    stash name: 'rest-results', includes: 'result-rest.xml'
                 }
             }
         }
     }
-    
+
     stage ('Results') {
         agent any
         steps {
+            unstash 'rest-results'
             junit 'result*.xml'
         }
     }
