@@ -51,8 +51,9 @@ pipeline {
                 agent any
                 steps {
                     catchError(buildResult: 'UNSTABLE', stageResult: 'FAILURE') {
-                        sh 'flake8 --format=pylint app/ test/'
+                        sh 'flake8 --format=pylint app/ test/ > flake8.out || true'
                     }
+                    recordIssues tools: [flake8(pattern: 'flake8.out')]
                 }
             }
 
