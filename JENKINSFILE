@@ -20,10 +20,12 @@ pipeline {
                     catchError(buildResult: 'UNSTABLE', stageResult: 'FAILURE') {
                         sh '''
                             export PYTHONPATH=$WORKSPACE
-                            pytest --junitxml=result-unit.xml test/unit
+                            coverage run --source=app -m pytest --junitxml=result-unit.xml test/unit
+                            coverage xml
                         '''
                     }
                     junit 'result-unit.xml'
+                    cobertura coberturaReportFile: 'coverage.xml'
                 }
             }
 
@@ -64,19 +66,7 @@ pipeline {
                 }
             }
 
-            stage('Coverage') {
-                agent any
-                steps {
-                    catchError(buildResult: 'UNSTABLE', stageResult: 'FAILURE') {
-                        sh '''
-                            export PYTHONPATH=$WORKSPACE
-                            coverage run -m pytest test/unit
-                            coverage xml
-                        '''
-                    }
-                    cobertura coberturaReportFile: 'coverage.xml'
-                }
-            }
+
         }
     }
 
