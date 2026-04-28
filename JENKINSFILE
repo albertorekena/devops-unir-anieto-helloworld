@@ -53,8 +53,8 @@ pipeline {
                     sh 'flake8 --format=pylint app/ test/ > flake8.out || true'
                     recordIssues tools: [flake8(pattern: 'flake8.out')],
                                  qualityGates: [
-                                     [threshold: 8,  type: 'TOTAL', status: 'WARNING'],
-                                     [threshold: 10, type: 'TOTAL', status: 'FAILED']
+                                     [threshold: 8,  type: 'TOTAL', criticality: 'UNSTABLE'],
+                                     [threshold: 10, type: 'TOTAL', criticality: 'FAILURE']
                                  ]
                 }
             }
@@ -65,8 +65,8 @@ pipeline {
                     sh 'bandit -r app/ -f custom -o bandit.out --msg-template "{abspath}:{line}: [{test_id}] {msg}" --exit-zero'
                     recordIssues tools: [pyLint(name: 'Bandit', pattern: 'bandit.out')],
                                  qualityGates: [
-                                     [threshold: 2, type: 'TOTAL', status: 'WARNING'],
-                                     [threshold: 4, type: 'TOTAL', status: 'FAILED']
+                                     [threshold: 2, type: 'TOTAL', criticality: 'UNSTABLE'],
+                                     [threshold: 4, type: 'TOTAL', criticality: 'FAILURE']
                                  ]
                 }
             }
