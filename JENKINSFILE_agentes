@@ -29,13 +29,7 @@ pipeline {
                 coverage xml
               '''
             }
-            junit 'result-unit.xml'
-            publishCoverage adapters: [coberturaAdapter('coverage.xml')],
-                     failUnhealthy: true,
-                     globalThresholds: [
-                       [thresholdTarget: 'Line',        unhealthyThreshold: 85.0, unstableThreshold: 95.0],
-                       [thresholdTarget: 'Conditional', unhealthyThreshold: 80.0, unstableThreshold: 90.0]
-                     ]
+            stash name: 'result-unit', includes: 'result-unit.xml,coverage.xml'
           }
         }
 
@@ -47,12 +41,7 @@ pipeline {
             cleanWs()
             unstash 'codigo-fuente'
             sh 'flake8 --format=pylint app/ test/ > flake8.out || true'
-            recordIssues tools: [flake8(pattern: 'flake8.out')],
-                   enabledForFailure: true,
-                   qualityGates: [
-                     [threshold: 8,  type: 'TOTAL', criticality: 'UNSTABLE'],
-                     [threshold: 10, type: 'TOTAL', criticality: 'FAILURE']
-                   ]
+            stash name: 'result-static', includes: 'flake8.out'
           }
         }
 
@@ -64,12 +53,7 @@ pipeline {
             cleanWs()
             unstash 'codigo-fuente'
             sh 'bandit -r app/ -f custom -o bandit.out --msg-template "{abspath}:{line}: [{test_id}] {msg}" --exit-zero'
-            recordIssues tools: [pyLint(name: 'Bandit', pattern: 'bandit.out')],
-                   enabledForFailure: true,
-                   qualityGates: [
-                     [threshold: 2, type: 'TOTAL', criticality: 'UNSTABLE'],
-                     [threshold: 4, type: 'TOTAL', criticality: 'FAILURE']
-                   ]
+            stash name: 'result-security', includes: 'bandit.out'
           }
         }
 
@@ -91,10 +75,41 @@ pipeline {
               export PYTHONPATH=$WORKSPACE
               pytest --junitxml=result-rest.xml test/rest
             '''
-            junit 'result-rest.xml'
+            stash name: 'result-rest', includes: 'result-rest.xml'
           }
         }
+      }
+    }
 
+    stage('Publicar Resultados') {
+      agent { label 'principal' }
+      options { skipDefaultCheckout() }
+      steps {
+        sh 'echo "AGENTE: $(whoami) @ $(hostname)"'
+        cleanWs()
+        unstash 'result-unit'
+        unstash 'result-static'
+        unstash 'result-security'
+        unstash 'result-rest'
+        junit 'result-unit.xml,result-rest.xml'
+        publishCoverage adapters: [coberturaAdapter('coverage.xml')],
+                 failUnhealthy: true,
+                 globalThresholds: [
+                   [thresholdTarget: 'Line',        unhealthyThreshold: 85.0, unstableThreshold: 95.0],
+                   [thresholdTarget: 'Conditional', unhealthyThreshold: 80.0, unstableThreshold: 90.0]
+                 ]
+        recordIssues tools: [flake8(pattern: 'flake8.out')],
+               enabledForFailure: true,
+               qualityGates: [
+                 [threshold: 8,  type: 'TOTAL', criticality: 'UNSTABLE'],
+                 [threshold: 10, type: 'TOTAL', criticality: 'FAILURE']
+               ]
+        recordIssues tools: [pyLint(name: 'Bandit', pattern: 'bandit.out')],
+               enabledForFailure: true,
+               qualityGates: [
+                 [threshold: 2, type: 'TOTAL', criticality: 'UNSTABLE'],
+                 [threshold: 4, type: 'TOTAL', criticality: 'FAILURE']
+               ]
       }
     }
 
