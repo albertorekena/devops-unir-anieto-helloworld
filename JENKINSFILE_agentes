@@ -8,7 +8,7 @@ pipeline {
       steps {
         sh 'echo "AGENTE: $(whoami) @ $(hostname)"'
         cleanWs()
-        git 'https://github.com/albertorekena/devops-unir-anieto-helloworld'
+        checkout scm
         stash name: 'codigo-fuente', includes: '**/*'
       }
     }
