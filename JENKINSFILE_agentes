@@ -6,7 +6,7 @@ pipeline {
       agent { label 'principal' }
       options { skipDefaultCheckout() }
       steps {
-        sh 'echo "### AGENTE: $(whoami) @ $(hostname) ###"'
+        sh 'echo "AGENTE: $(whoami) @ $(hostname)"'
         cleanWs()
         git 'https://github.com/albertorekena/devops-unir-anieto-helloworld'
         stash name: 'codigo-fuente', includes: '**/*'
@@ -15,93 +15,86 @@ pipeline {
 
     stage('Tests') {
       parallel {
-        stage('Secundario 1') {
+        stage('Unit') {
           agent { label 'secundario1' }
           options { skipDefaultCheckout() }
-          stages {
-            stage('Comienza Secundario 1') {
-              steps {
-                sh 'echo "### AGENTE: $(whoami) @ $(hostname) ###"'
-                cleanWs()
-                unstash 'codigo-fuente'
-              }
+          steps {
+            sh 'echo "AGENTE: $(whoami) @ $(hostname)"'
+            cleanWs()
+            unstash 'codigo-fuente'
+            catchError(buildResult: 'UNSTABLE', stageResult: 'FAILURE') {
+              sh '''
+                export PYTHONPATH=$WORKSPACE
+                coverage run --source=app -m pytest --junitxml=result-unit.xml test/unit
+                coverage xml
+              '''
             }
-            stage('Unit') {
-              steps {
-                sh 'echo "### AGENTE: $(whoami) @ $(hostname) ###"'
-                catchError(buildResult: 'UNSTABLE', stageResult: 'FAILURE') {
-                  sh '''
-                    export PYTHONPATH=$WORKSPACE
-                    coverage run --source=app -m pytest --junitxml=result-unit.xml test/unit
-                    coverage xml
-                  '''
-                }
-                junit 'result-unit.xml'
-                publishCoverage adapters: [coberturaAdapter('coverage.xml')],
-                         failUnhealthy: true,
-                         globalThresholds: [
-                           [thresholdTarget: 'Line',        unhealthyThreshold: 85.0, unstableThreshold: 95.0],
-                           [thresholdTarget: 'Conditional', unhealthyThreshold: 80.0, unstableThreshold: 90.0]
-                         ]
-              }
-            }
-            stage('Static') {
-              steps {
-                sh 'echo "### AGENTE: $(whoami) @ $(hostname) ###"'
-                sh 'flake8 --format=pylint app/ test/ > flake8.out || true'
-                recordIssues tools: [flake8(pattern: 'flake8.out')],
-                       enabledForFailure: true,
-                       qualityGates: [
-                         [threshold: 8,  type: 'TOTAL', criticality: 'UNSTABLE'],
-                         [threshold: 10, type: 'TOTAL', criticality: 'FAILURE']
-                       ]
-              }
-            }
-            stage('Security') {
-              steps {
-                sh 'echo "### AGENTE: $(whoami) @ $(hostname) ###"'
-                sh 'bandit -r app/ -f custom -o bandit.out --msg-template "{abspath}:{line}: [{test_id}] {msg}" --exit-zero'
-                recordIssues tools: [pyLint(name: 'Bandit', pattern: 'bandit.out')],
-                       enabledForFailure: true,
-                       qualityGates: [
-                         [threshold: 2, type: 'TOTAL', criticality: 'UNSTABLE'],
-                         [threshold: 4, type: 'TOTAL', criticality: 'FAILURE']
-                       ]
-              }
-            }
+            junit 'result-unit.xml'
+            publishCoverage adapters: [coberturaAdapter('coverage.xml')],
+                     failUnhealthy: true,
+                     globalThresholds: [
+                       [thresholdTarget: 'Line',        unhealthyThreshold: 85.0, unstableThreshold: 95.0],
+                       [thresholdTarget: 'Conditional', unhealthyThreshold: 80.0, unstableThreshold: 90.0]
+                     ]
           }
         }
 
-        stage('Secundario 2') {
-          agent { label 'secundario2' }
+        stage('Static') {
+          agent { label 'secundario1' }
           options { skipDefaultCheckout() }
-          stages {
-            stage('Comienza Secundario 2') {
-              steps {
-                sh 'echo "### AGENTE: $(whoami) @ $(hostname) ###"'
-                cleanWs()
-                unstash 'codigo-fuente'
-              }
-            }
-            stage('Rest') {
-              steps {
-                sh 'echo "### AGENTE: $(whoami) @ $(hostname) ###"'
-                sh '''
-                  [ -f test/wiremock/wiremock-standalone.jar ] || curl -sLo test/wiremock/wiremock-standalone.jar \
-                    https://repo1.maven.org/maven2/com/github/tomakehurst/wiremock-standalone/2.27.2/wiremock-standalone-2.27.2.jar
-                  export FLASK_APP=app/api.py
-                  export FLASK_ENV=development
-                  flask run --port=5001 &
-                  java -jar test/wiremock/wiremock-standalone.jar --port 9090 --root-dir test/wiremock &
-                  sleep 3
-                  export PYTHONPATH=$WORKSPACE
-                  pytest --junitxml=result-rest.xml test/rest
-                '''
-                junit 'result-rest.xml'
-              }
-            }
+          steps {
+            sh 'echo "AGENTE: $(whoami) @ $(hostname)"'
+            cleanWs()
+            unstash 'codigo-fuente'
+            sh 'flake8 --format=pylint app/ test/ > flake8.out || true'
+            recordIssues tools: [flake8(pattern: 'flake8.out')],
+                   enabledForFailure: true,
+                   qualityGates: [
+                     [threshold: 8,  type: 'TOTAL', criticality: 'UNSTABLE'],
+                     [threshold: 10, type: 'TOTAL', criticality: 'FAILURE']
+                   ]
           }
         }
+
+        stage('Security') {
+          agent { label 'secundario1' }
+          options { skipDefaultCheckout() }
+          steps {
+            sh 'echo "AGENTE: $(whoami) @ $(hostname)"'
+            cleanWs()
+            unstash 'codigo-fuente'
+            sh 'bandit -r app/ -f custom -o bandit.out --msg-template "{abspath}:{line}: [{test_id}] {msg}" --exit-zero'
+            recordIssues tools: [pyLint(name: 'Bandit', pattern: 'bandit.out')],
+                   enabledForFailure: true,
+                   qualityGates: [
+                     [threshold: 2, type: 'TOTAL', criticality: 'UNSTABLE'],
+                     [threshold: 4, type: 'TOTAL', criticality: 'FAILURE']
+                   ]
+          }
+        }
+
+        stage('Rest') {
+          agent { label 'secundario2' }
+          options { skipDefaultCheckout() }
+          steps {
+            sh 'echo "AGENTE: $(whoami) @ $(hostname)"'
+            cleanWs()
+            unstash 'codigo-fuente'
+            sh '''
+              [ -f test/wiremock/wiremock-standalone.jar ] || curl -sLo test/wiremock/wiremock-standalone.jar \
+                https://repo1.maven.org/maven2/com/github/tomakehurst/wiremock-standalone/2.27.2/wiremock-standalone-2.27.2.jar
+              export FLASK_APP=app/api.py
+              export FLASK_ENV=development
+              flask run --port=5001 &
+              java -jar test/wiremock/wiremock-standalone.jar --port 9090 --root-dir test/wiremock &
+              sleep 3
+              export PYTHONPATH=$WORKSPACE
+              pytest --junitxml=result-rest.xml test/rest
+            '''
+            junit 'result-rest.xml'
+          }
+        }
+
       }
     }
 
@@ -109,7 +102,7 @@ pipeline {
       agent { label 'principal' }
       options { skipDefaultCheckout() }
       steps {
-        sh 'echo "### AGENTE: $(whoami) @ $(hostname) ###"'
+        sh 'echo "AGENTE: $(whoami) @ $(hostname)"'
         cleanWs()
         unstash 'codigo-fuente'
         sh '''
