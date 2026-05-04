@@ -25,7 +25,7 @@ pipeline {
             catchError(buildResult: 'UNSTABLE', stageResult: 'FAILURE') {
               sh '''
                 export PYTHONPATH=$WORKSPACE
-                coverage run --source=app -m pytest --junitxml=result-unit.xml test/unit
+                coverage run --source=app --omit=app/api.py --branch -m pytest --junitxml=result-unit.xml test/unit
                 coverage xml
               '''
             }
