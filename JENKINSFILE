@@ -1,10 +1,9 @@
 pipeline {
-    // agent any
     agent none
 
     stages {
         stage('Get Code') {
-            agent any
+            agent { label 'built-in' }
             options { skipDefaultCheckout() }
             steps {
                 cleanWs()
@@ -15,7 +14,7 @@ pipeline {
     stage('Tests') {
         parallel {
             stage('Unit') {
-                agent any
+                agent { label 'built-in' }
                 steps {
                     catchError(buildResult: 'UNSTABLE', stageResult: 'FAILURE') {
                         sh '''
@@ -35,7 +34,7 @@ pipeline {
             }
 
             stage('Rest') {
-                agent any
+                agent { label 'built-in' }
                 steps {
                     sh '''
                         [ -f test/wiremock/wiremock-standalone.jar ] || curl -sLo test/wiremock/wiremock-standalone.jar \
@@ -53,7 +52,7 @@ pipeline {
             }
 
             stage('Static') {
-                agent any
+                agent { label 'built-in' }
                 steps {
                     sh 'flake8 --format=pylint app/ test/ > flake8.out || true'
                     recordIssues tools: [flake8(pattern: 'flake8.out')],
@@ -66,7 +65,7 @@ pipeline {
             }
 
             stage('Security') {
-                agent any
+                agent { label 'built-in' }
                 steps {
                     sh 'bandit -r app/ -f custom -o bandit.out --msg-template "{abspath}:{line}: [{test_id}] {msg}" --exit-zero'
                     recordIssues tools: [pyLint(name: 'Bandit', pattern: 'bandit.out')],
@@ -83,7 +82,7 @@ pipeline {
     }
 
     stage('Performance') {
-        agent any
+        agent { label 'built-in' }
         steps {
             sh '''
                 [ -d /var/jenkins_home/tools/apache-jmeter-5.4.3 ] || {
