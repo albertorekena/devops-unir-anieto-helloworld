@@ -7,7 +7,7 @@ pipeline {
             options { skipDefaultCheckout() }
             steps {
                 cleanWs()
-                checkout scm
+                git 'https://github.com/albertorekena/devops-unir-anieto-helloworld'
             }
         }
 
@@ -54,7 +54,9 @@ pipeline {
             stage('Static') {
                 agent { label 'built-in' }
                 steps {
-                    sh 'flake8 --format=pylint app/ test/ > flake8.out || true'
+                    catchError(buildResult: 'UNSTABLE', stageResult: 'FAILURE') {
+                        sh 'flake8 --format=pylint app/ test/ > flake8.out'
+                    }
                     recordIssues tools: [flake8(pattern: 'flake8.out')],
                                  enabledForFailure: true,
                                  qualityGates: [
