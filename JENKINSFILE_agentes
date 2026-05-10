@@ -2,13 +2,13 @@ pipeline {
   agent none
 
   stages {
-    stage('Conseguir Código del Repositorio') {
+    stage('Get Code') {
       agent { label 'principal' }
       options { skipDefaultCheckout() }
       steps {
         sh 'echo "AGENTE: $(whoami) @ $(hostname)"'
         cleanWs()
-        checkout scm
+        git 'https://github.com/albertorekena/devops-unir-anieto-helloworld'
         stash name: 'codigo-fuente', includes: '**/*'
       }
     }
@@ -46,7 +46,9 @@ pipeline {
             sh 'echo "AGENTE: $(whoami) @ $(hostname)"'
             cleanWs()
             unstash 'codigo-fuente'
-            sh 'flake8 --format=pylint app/ test/ > flake8.out || true'
+            catchError(buildResult: 'UNSTABLE', stageResult: 'FAILURE') {
+                sh 'flake8 --format=pylint app/ test/ > flake8.out'
+            }
             recordIssues tools: [flake8(pattern: 'flake8.out')],
                    enabledForFailure: true,
                    qualityGates: [
