@@ -55,7 +55,9 @@ pipeline {
             stage('Static') {
                 agent any
                 steps {
-                    sh 'flake8 --format=pylint app/ test/ > flake8.out || true'
+                    catchError(buildResult: 'UNSTABLE', stageResult: 'FAILURE') {
+                        sh 'flake8 --format=pylint app/ test/ > flake8.out'
+                    }
                     recordIssues tools: [flake8(pattern: 'flake8.out')],
                                  enabledForFailure: true,
                                  qualityGates: [
@@ -77,8 +79,6 @@ pipeline {
                                  ]
                 }
             }
-
-
         }
     }
 
