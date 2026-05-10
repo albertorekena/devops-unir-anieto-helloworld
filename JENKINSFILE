@@ -21,6 +21,7 @@ pipeline {
                             export PYTHONPATH=$WORKSPACE
                             coverage run --source=app -m pytest --junitxml=result-unit.xml test/unit
                             coverage xml
+                            coverage report --include=app/*
                         '''
                     }
                     junit 'result-unit.xml'
